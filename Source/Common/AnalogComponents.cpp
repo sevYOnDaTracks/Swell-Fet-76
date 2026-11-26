@@ -490,37 +490,102 @@ void VuMeter::paint (Graphics& g)
 //==============================================================================
 void PushKey::paintButton (Graphics& g, bool highlighted, bool down)
 {
+    // Touche à verrouillage en plastique ivoire, posée dans une découpe de la façade.
+    // Vue de face, lumière en haut à gauche : on voit l'épaisseur de la touche par ses biseaux,
+    // et l'ombre qu'elle porte au fond du logement. Enfoncée, elle descend dans la découpe.
     const auto b = getLocalBounds().toFloat().reduced (1.0f);
     const bool pressed = getToggleState() || down;
+    const auto seed = (uint32_t) (getY() * 7 + getX());
 
-    // Logement dans la façade.
-    g.setColour (Colour (0xff0a0a0b));
-    g.fillRoundedRectangle (b, 3.0f);
-    g.setGradientFill (ColourGradient (Colours::black, b.getX(), b.getY(), Colour (0xff2b2b2e), b.getX(), b.getBottom(), false));
-    g.drawRoundedRectangle (b, 3.0f, 1.0f);
+    // 1. Découpe : fond noir, parois intérieures (haute dans l'ombre, basse qui accroche la lumière).
+    const float wall = 2.6f;
+    g.setColour (Colour (0xff050506));
+    g.fillRoundedRectangle (b, 2.0f);
+    g.setGradientFill (ColourGradient (Colours::black, 0, b.getY(), Colour (0xff1a1a1c), 0, b.getY() + wall * 2, false));
+    g.fillRect (b.withHeight (wall * 1.5f).reduced (1.0f, 0));
+    g.setColour (Colours::white.withAlpha (0.10f));
+    g.drawLine (b.getX() + 2, b.getBottom() - 0.6f, b.getRight() - 2, b.getBottom() - 0.6f, 0.9f);   // arête basse de la découpe
+    g.setColour (Colours::black.withAlpha (0.8f));
+    g.drawRoundedRectangle (b, 2.0f, 0.8f);
 
-    auto cap = b.reduced (b.getWidth() * 0.09f, b.getHeight() * 0.11f);
-    if (pressed) cap = cap.translated (0, 1.6f).reduced (0.4f);
-    else
+    // 2. La touche : plus haute que large d'un rien, coins à peine arrondis.
+    auto cap = b.reduced (wall, wall * 0.9f);
+    const float travel = pressed ? 2.6f : 0.0f;
+    cap = cap.translated (0, travel).reduced (pressed ? 0.8f : 0.0f).withTrimmedBottom (pressed ? 1.0f : 0.0f);
+    const float corner = 1.6f;
+
+    // Ombre portée au fond du logement (presque nulle quand la touche est enfoncée).
+    if (! pressed)
     {
-        g.setColour (Colours::black.withAlpha (0.65f));
-        g.fillRoundedRectangle (cap.translated (0.6f, 2.2f), 2.5f);
+        Path sh;
+        sh.addRoundedRectangle (cap.translated (0.8f, 2.4f), corner);
+        g.setColour (Colours::black.withAlpha (0.75f));
+        g.fillPath (sh);
     }
-    const float tone = pressed ? 0.86f : (highlighted ? 1.03f : 1.0f);
-    auto shade = [tone] (uint32 argb) { auto c = Colour (argb); return Colour::fromFloatRGBA (jmin (1.0f, c.getFloatRed() * tone), jmin (1.0f, c.getFloatGreen() * tone), jmin (1.0f, c.getFloatBlue() * tone), 1.0f); };
-    g.setGradientFill (ColourGradient (shade (0xffeae5d6), cap.getX(), cap.getY(), shade (0xffa9a392), cap.getX(), cap.getBottom(), false));
-    g.fillRoundedRectangle (cap, 2.5f);
-    const auto top = cap.reduced (cap.getWidth() * 0.10f, 0).withTrimmedTop (cap.getHeight() * 0.06f).withTrimmedBottom (cap.getHeight() * 0.22f);
-    g.setGradientFill (ColourGradient (shade (0xfffbf8ef), top.getX(), top.getY(), shade (0xffd9d3c3), top.getX(), top.getBottom(), false));
-    g.fillRoundedRectangle (top, 2.0f);
-    g.setColour (Colours::white.withAlpha (pressed ? 0.25f : 0.6f));
-    g.drawLine (top.getX() + 1, top.getY() + 0.6f, top.getRight() - 1, top.getY() + 0.6f, 0.8f);
-    g.setTiledImageFill (grainTile(), 0, 0, 0.05f);
-    g.fillRoundedRectangle (cap, 2.5f);
-    if (pressed)   // la touche enfoncée passe dans l'ombre du logement
+
+    // Plastique ivoire un peu jauni ; la touche enfoncée reçoit moins de lumière.
+    const float lightK = pressed ? 0.90f : (highlighted ? 1.04f : 1.0f);
+    auto tone = [lightK] (uint32 argb, float k = 1.0f)
     {
-        g.setGradientFill (ColourGradient (Colours::black.withAlpha (0.35f), cap.getX(), cap.getY(), Colours::transparentBlack, cap.getX(), cap.getY() + cap.getHeight() * 0.4f, false));
-        g.fillRoundedRectangle (cap, 2.5f);
+        const auto c = Colour (argb);
+        const float m = lightK * k;
+        return Colour::fromFloatRGBA (jmin (1.0f, c.getFloatRed() * m), jmin (1.0f, c.getFloatGreen() * m), jmin (1.0f, c.getFloatBlue() * m), 1.0f);
+    };
+    const Colour ivory = tone (0xffe6dfcb);
+
+    // Corps de la touche (ce qui dépasse sous la face : flanc bas visible).
+    g.setColour (tone (0xff8e8674));
+    g.fillRoundedRectangle (cap, corner);
+
+    // Biseaux : quatre facettes éclairées différemment autour de la face.
+    const float bev = pressed ? 1.3f : 2.0f;
+    const auto face = cap.reduced (bev, bev).translated (0, -bev * 0.25f);
+    auto facet = [&] (Point<float> a, Point<float> b2, Point<float> c, Point<float> d, Colour col)
+    {
+        Path p; p.startNewSubPath (a); p.lineTo (b2); p.lineTo (c); p.lineTo (d); p.closeSubPath();
+        g.setColour (col); g.fillPath (p);
+    };
+    facet (cap.getTopLeft(), cap.getTopRight(), face.getTopRight(), face.getTopLeft(), tone (0xfff7f2e4));         // haut : pleine lumière
+    facet (cap.getTopLeft(), face.getTopLeft(), face.getBottomLeft(), cap.getBottomLeft(), tone (0xffd9d2be));     // gauche
+    facet (cap.getTopRight(), cap.getBottomRight(), face.getBottomRight(), face.getTopRight(), tone (0xffa59d88));  // droite
+    facet (cap.getBottomLeft(), face.getBottomLeft(), face.getBottomRight(), cap.getBottomRight(), tone (0xff8a826e)); // bas : dans l'ombre
+
+    // Face légèrement creusée : plus claire en haut, assombrie vers le bas, cuvette au centre.
+    g.setGradientFill (ColourGradient (tone (0xffefe9d7), 0, face.getY(), tone (0xffcfc7b1), 0, face.getBottom(), false));
+    g.fillRoundedRectangle (face, 1.0f);
+    {
+        Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (face.toNearestInt());
+        ColourGradient dish (Colours::black.withAlpha (0.0f), face.getCentreX(), face.getCentreY() - face.getHeight() * 0.1f,
+                             Colours::black.withAlpha (0.10f), face.getX(), face.getY(), true);
+        g.setGradientFill (dish);
+        g.fillRect (face);
+        // Patine : crasse claire dans les coins, usure plus lisse au centre là où le doigt appuie.
+        Rng r (seed);
+        for (int i = 0; i < 6; ++i)
+        {
+            const float x = face.getX() + r.next() * face.getWidth(), y = face.getY() + r.next() * face.getHeight();
+            g.setColour (Colour (0xff6b5f45).withAlpha (0.05f + 0.06f * r.next()));
+            g.fillEllipse (x, y, 1.0f + r.next() * 2.5f, 0.6f + r.next() * 1.5f);
+        }
+        ColourGradient polish (Colours::white.withAlpha (pressed ? 0.06f : 0.14f), face.getCentreX(), face.getCentreY(),
+                               Colours::transparentWhite, face.getCentreX() + face.getWidth() * 0.35f, face.getCentreY(), true);
+        g.setGradientFill (polish);
+        g.fillRect (face);
+        g.setTiledImageFill (grainTile(), (int) (r.next() * 200), (int) (r.next() * 200), 0.06f);
+        g.fillRect (face);
+    }
+    // Arêtes : fin liseré clair en haut de la face, contour sombre de la touche.
+    g.setColour (Colours::white.withAlpha (pressed ? 0.25f : 0.55f));
+    g.drawLine (face.getX() + 1.0f, face.getY() + 0.5f, face.getRight() - 1.0f, face.getY() + 0.5f, 0.7f);
+    g.setColour (Colours::black.withAlpha (0.55f));
+    g.drawRoundedRectangle (cap, corner, 0.7f);
+    juce::ignoreUnused (ivory);
+
+    if (pressed)   // enfoncée, la paroi haute de la découpe lui fait de l'ombre
+    {
+        g.setGradientFill (ColourGradient (Colours::black.withAlpha (0.7f), 0, cap.getY(), Colours::transparentBlack, 0, cap.getY() + cap.getHeight() * 0.5f, false));
+        g.fillRoundedRectangle (cap, corner);
     }
 }
 

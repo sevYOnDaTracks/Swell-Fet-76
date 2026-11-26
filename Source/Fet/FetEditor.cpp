@@ -8,8 +8,8 @@ namespace
 constexpr int W = 1100, H = 330;
 const Colour ink (0xffe4dccb);          // encre de sérigraphie, blanc cassé
 const Colour panelTone (0xff1f1f21);
-constexpr int keyX1 = 612, keyW = 46, keyH = 28;
-constexpr int keyRows[] { 92, 132, 172, 212 };
+constexpr int keyX1 = 612, keyW = 44, keyH = 32;
+constexpr int keyRows[] { 90, 130, 170, 210 };
 const Rectangle<int> meterArea (742, 62, 222, 204);
 
 VuMeter::Style meterStyle()
