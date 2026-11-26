@@ -69,3 +69,4 @@ endforeach()
 add_test(NAME AudioFET76 COMMAND TestFET76)
 # Presets d'usine : chacun tient son cahier des charges (niveau, réduction, caractère) sur VOX.wav et des sources synthétiques.
 add_test(NAME PresetsFET76 COMMAND PresetTestFET76 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+set_tests_properties(PresetsFET76 PROPERTIES SKIP_RETURN_CODE 77)

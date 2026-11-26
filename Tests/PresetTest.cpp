@@ -420,7 +420,8 @@ int main (int argc, char** argv)
     src.buf["bass"] = mono2 (bass());
     src.buf["808"] = mono2 (eightOhEight());
     src.buf["gtr"] = mono2 (pluck (&src.gtrHits));
-    if (src.buf["vox"].getNumSamples() == 0) { std::printf ("VOX.wav introuvable : %s\n", voxFile.getFullPathName().toRawUTF8()); return 1; }
+    // VOX.wav (extraits sous licence CC BY, hors dépôt) : sans lui, le test est ignoré (code 77 = SKIP pour ctest).
+    if (src.buf["vox"].getNumSamples() == 0) { std::printf ("VOX.wav introuvable : %s (test ignoré)\n", voxFile.getFullPathName().toRawUTF8()); return 77; }
     if (outDir != File()) for (auto& [k, b] : src.buf) writeWav (outDir.getChildFile ("_source-" + k + ".wav"), b);
 
     std::printf ("Sources : ");
