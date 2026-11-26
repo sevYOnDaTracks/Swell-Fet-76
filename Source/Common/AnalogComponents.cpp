@@ -63,8 +63,8 @@ KnobGeo geoFor (Knob::Style s)
 {
     switch (s)
     {
-        case Knob::Style::FetLarge:  return { false, 44, 1.00f, 0.80f };
-        case Knob::Style::FetSmall:  return { false, 30, 1.00f, 0.76f };
+        case Knob::Style::FetLarge:  return { false, 64, 1.00f, 0.80f };
+        case Knob::Style::FetSmall:  return { false, 44, 1.00f, 0.76f };
         case Knob::Style::OptoLarge: return { true, 18, 0.70f, 0.55f };
         case Knob::Style::OptoSmall: return { true, 14, 0.72f, 0.56f };
         case Knob::Style::ChickenHead: break;
@@ -126,7 +126,7 @@ void Knob::paint (Graphics& g)
             const float th = angle + MathConstants<float>::twoPi * (float) i / (float) n;
             const float facing = std::cos (th + MathConstants<float>::pi * 0.25f);
             const float soft = geo.skirt ? 0.55f : 1.0f;   // les cannelures moulées de la bakélite brillent moins
-            const float lit = (0.05f + 0.45f * std::pow (jmax (0.0f, facing), 2.0f) + 0.06f * jmax (0.0f, -facing)) * soft;
+            const float lit = (0.03f + 0.26f * std::pow (jmax (0.0f, facing), 2.0f) + 0.04f * jmax (0.0f, -facing)) * soft;   // plastique moulé : reflets doux
             g.setColour (Colours::white.withAlpha (lit));
             g.drawLine ({ c.getPointOnCircumference (r0, th), c.getPointOnCircumference (r1, th) }, width);
             const float th2 = th + MathConstants<float>::pi / (float) n;
@@ -187,6 +187,18 @@ void Knob::paint (Graphics& g)
         ig.fillEllipse (c.x - faceR, c.y - faceR, faceR * 2, faceR * 2);
         ig.setTiledImageFill (grainTile(), 0, 0, 0.05f);
         ig.fillEllipse (c.x - faceR, c.y - faceR, faceR * 2, faceR * 2);
+        // Usage : micro-rayures dans l'usinage et poussière (chaque bouton a les siennes).
+        const auto seed = (uint32_t) (getX() * 31 + getY() * 17 + 5);
+        Rng r (seed);
+        for (int i = 0; i < 10; ++i)
+        {
+            const float rr = faceR * (0.2f + 0.75f * r.next()), a0 = r.next() * 6.28f;
+            Path arc;
+            arc.addCentredArc (c.x, c.y, rr, rr, 0, a0, a0 + 0.2f + r.next() * 0.8f, true);
+            ig.setColour (Colours::white.withAlpha (0.03f + 0.05f * r.next()));
+            ig.strokePath (arc, PathStrokeType (0.4f));
+        }
+        drawDust (ig, Rectangle<float> (faceR * 2, faceR * 2).withCentre (c), (int) (faceR * 0.9f), 0.8f, seed);
     });
     gloss.blit (g, bounds);
 }
@@ -307,6 +319,20 @@ void VuMeter::paintBack (Graphics& g)
     }
     g.setTiledImageFill (grainTile(), 0, 0, 0.07f);
     g.fillRect (win);
+    {
+        // Carton vieilli : bords jaunis, quelques rousseurs.
+        ColourGradient age (Colours::transparentBlack, win.getCentreX(), win.getCentreY() - win.getHeight() * 0.1f,
+                            Colour (0xff7a5a2a).withAlpha (0.22f), win.getX(), win.getY(), true);
+        g.setGradientFill (age);
+        g.fillRect (win);
+        Rng r (911);
+        for (int i = 0; i < 14; ++i)
+        {
+            const float s = 0.8f + r.next() * r.next() * 3.5f;
+            g.setColour (Colour (0xff8a6a3a).withAlpha (0.05f + 0.10f * r.next()));
+            g.fillEllipse (win.getX() + r.next() * win.getWidth(), win.getY() + r.next() * win.getHeight(), s, s * (0.7f + 0.5f * r.next()));
+        }
+    }
 
     Point<float> pv; float R;
     geometry (pv, R);
@@ -414,6 +440,12 @@ void VuMeter::paintGlass (Graphics& g)
     g.fillPath (sheen);
     g.setColour (Colours::white.withAlpha (0.30f));
     g.drawLine (win.getX() + 2, win.getY() + 1.5f, win.getRight() - 2, win.getY() + 1.5f, 0.8f);
+    // Poussière sur le verre et une trace de doigt estompée dans le coin bas droit.
+    drawDust (g, win, 90, 0.9f, 313);
+    ColourGradient smudge (Colours::white.withAlpha (0.05f), win.getRight() - win.getWidth() * 0.18f, win.getBottom() - win.getHeight() * 0.22f,
+                           Colours::transparentWhite, win.getRight() - win.getWidth() * 0.18f + win.getWidth() * 0.12f, win.getBottom() - win.getHeight() * 0.22f, true);
+    g.setGradientFill (smudge);
+    g.fillRect (win);
 }
 
 void VuMeter::paint (Graphics& g)

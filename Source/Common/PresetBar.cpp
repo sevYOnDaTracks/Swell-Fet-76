@@ -118,44 +118,62 @@ void PresetBar::saveAs()
 
 void PresetBar::paint (Graphics& g)
 {
+    // Ruban Dymo collé sur la façade : plastique noir brillant, lettres blanches embossées,
+    // un peu de travers comme sur une vraie étiquette faite à la pince.
     const auto b = getLocalBounds().toFloat();
     const float h = b.getHeight();
-    const float corner = h * 0.18f;
-
-    // Logement : arête claire en bas (lumière d'en haut), ombre portée à l'intérieur en haut.
-    g.setColour (Colours::white.withAlpha (dark ? 0.12f : 0.55f));
-    g.drawRoundedRectangle (b.translated (0, 1.0f).reduced (0.5f), corner, 1.0f);
-    const auto win = b.reduced (1.0f);
-    g.setGradientFill (ColourGradient (Colour (0xff030303), 0, win.getY(), Colour (0xff1a1816), 0, win.getBottom(), false));
-    g.fillRoundedRectangle (win, corner);
-    g.setGradientFill (ColourGradient (Colours::black.withAlpha (0.8f), 0, win.getY(), Colours::transparentBlack, 0, win.getY() + h * 0.3f, false));
-    g.fillRoundedRectangle (win, corner);
-
-    const Colour lamp (0xfff3d79c);   // rétroéclairage chaud
-    auto arrow = [&] (Rectangle<float> r, bool left, bool lit)
+    const auto tape = b.reduced (2.0f, h * 0.12f);
+    Path strip;
+    strip.addRoundedRectangle (tape, 1.5f);
+    strip.applyTransform (AffineTransform::rotation (-0.006f, tape.getCentreX(), tape.getCentreY()));
+    softShadow (g, strip, Colours::black.withAlpha (0.7f), 2.5f, { 0.4f, 1.2f });
+    g.setGradientFill (ColourGradient (Colour (0xff2a2a2e), 0, tape.getY(), Colour (0xff0b0b0d), 0, tape.getBottom(), false));
+    g.fillPath (strip);
     {
-        const auto c = r.getCentre();
-        const float s = h * 0.17f;
-        Path t;
-        if (left) t.addTriangle (c.x + s * 0.6f, c.y - s, c.x + s * 0.6f, c.y + s, c.x - s * 0.7f, c.y);
-        else      t.addTriangle (c.x - s * 0.6f, c.y - s, c.x - s * 0.6f, c.y + s, c.x + s * 0.7f, c.y);
-        g.setColour (lamp.withAlpha (lit ? 0.95f : 0.45f));
-        g.fillPath (t);
+        Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (strip);
+        // Fines stries longitudinales du plastique et reflet brillant en haut.
+        for (float y = tape.getY() + 1.0f; y < tape.getBottom(); y += 1.6f)
+        {
+            g.setColour (Colours::white.withAlpha (0.025f));
+            g.drawHorizontalLine ((int) y, tape.getX(), tape.getRight());
+        }
+        g.setGradientFill (ColourGradient (Colours::white.withAlpha (0.16f), 0, tape.getY(), Colours::transparentWhite, 0, tape.getY() + tape.getHeight() * 0.45f, false));
+        g.fillRect (tape);
+        g.setTiledImageFill (grainTile(), 0, 0, 0.06f);
+        g.fillRect (tape);
+    }
+    g.setColour (Colours::black.withAlpha (0.8f));
+    g.strokePath (strip, PathStrokeType (0.6f));
+
+    // Lettres embossées : le plastique étiré blanchit, chaque lettre est frappée un peu de travers.
+    auto emboss = [&] (const String& text, Rectangle<float> area, Justification j, float alpha, uint32_t seed)
+    {
+        GlyphArrangement ga;
+        ga.addLineOfText (condensedFont (h * 0.50f).withExtraKerningFactor (0.08f), text, 0, 0);
+        const auto box = ga.getBoundingBox (0, -1, true);
+        const auto placed = box.withPosition (j.appliedToRectangle (box.toNearestInt(), area.toNearestInt()).getPosition().toFloat());
+        Rng r (seed);
+        for (int i = 0; i < ga.getNumGlyphs(); ++i)
+        {
+            auto& gl = ga.getGlyph (i);
+            if (gl.isWhitespace()) continue;
+            Path p;
+            gl.createPath (p);
+            const float dx = placed.getX() - box.getX(), dy = placed.getY() - box.getY() + r.bipolar() * 0.45f;
+            p.applyTransform (AffineTransform::rotation (r.bipolar() * 0.025f, gl.getLeft() + gl.getRight() * 0.0f, gl.getBaselineY())
+                                  .translated (dx, dy));
+            g.setColour (Colours::black.withAlpha (0.7f * alpha));
+            g.fillPath (p, AffineTransform::translation (0.5f, 0.8f));
+            g.setColour (Colour (0xfff2f0ea).withAlpha (alpha * (0.82f + 0.12f * r.next())));
+            g.fillPath (p);
+            g.setColour (Colours::white.withAlpha (0.35f * alpha));
+            g.strokePath (p, PathStrokeType (0.3f), AffineTransform::translation (-0.2f, -0.3f));
+        }
     };
-    arrow (win.withWidth (h), true, hover == 0);
-    arrow (win.withTrimmedLeft (win.getWidth() - h), false, hover == 2);
-
-    // Nom : léger halo autour des lettres, comme une fenêtre éclairée par l'arrière.
-    const auto textArea = win.reduced (h, 0);
-    g.setFont (panelFont (h * 0.46f, true));
-    g.setColour (lamp.withAlpha (0.16f));
-    for (auto off : { Point<float> (-0.7f, 0), Point<float> (0.7f, 0), Point<float> (0, -0.7f), Point<float> (0, 0.7f) })
-        g.drawText (shown.toUpperCase(), textArea.translated (off.x, off.y), Justification::centred, true);
-    g.setColour (lamp.withAlpha (hover == 1 ? 1.0f : 0.9f));
-    g.drawText (shown.toUpperCase(), textArea, Justification::centred, true);
-
-    // Vitre : reflet en haut.
-    g.setGradientFill (ColourGradient (Colours::white.withAlpha (0.10f), 0, win.getY(), Colours::transparentWhite, 0, win.getCentreY(), false));
-    g.fillRoundedRectangle (win.reduced (1.0f), corner);
+    const float a = h;
+    emboss (String::fromUTF8 ("\xe2\x97\x80"), tape.withWidth (a), Justification::centred, hover == 0 ? 1.0f : 0.6f, 1);
+    emboss (String::fromUTF8 ("\xe2\x96\xb6"), tape.withTrimmedLeft (tape.getWidth() - a), Justification::centred, hover == 2 ? 1.0f : 0.6f, 2);
+    emboss (shown.toUpperCase(), tape.reduced (a, 0), Justification::centred, hover == 1 ? 1.0f : 0.92f, (uint32_t) shown.hashCode());
 }
 } // namespace swell::analog

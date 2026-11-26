@@ -10,6 +10,7 @@ namespace swell::analog
 inline constexpr float lightAngle = -2.35f;   // radians, sens JUCE (0 = vers la droite, y vers le bas)
 
 juce::Font panelFont (float height, bool bold = true);
+const juce::Image& grainTile();   // bruit 256 x 256 à superposer en mosaïque (papier, plastique)
 juce::Font condensedFont (float height);
 float physicalScale (juce::Graphics&);
 
@@ -38,6 +39,24 @@ void drawRackEar (juce::Graphics&, juce::Rectangle<float> ear, juce::Colour pane
 void drawPrinted (juce::Graphics&, const juce::String&, juce::Rectangle<float>, const juce::Font&,
                   juce::Colour ink, juce::Justification = juce::Justification::centred);
 void drawPanelLight (juce::Graphics&, juce::Rectangle<float>, float strength);
+
+// Sérigraphie : le texte devient un tracé rempli d'encre légèrement baveuse, puis usé par endroits
+// (l'encre manque là où les doigts et le temps sont passés). panelTone = couleur de la façade dessous.
+void drawInk (juce::Graphics&, const juce::Path& printed, juce::Colour ink, juce::Colour panelTone, uint32_t seed);
+
+// Vie d'un appareil de studio : rayures circulaires autour des boutons (hotspots), rayures fines,
+// éclats de peinture sur les arêtes, poussière, peluches et zones lustrées par les doigts.
+struct WearSpec
+{
+    juce::Rectangle<float> area;
+    std::vector<std::pair<juce::Point<float>, float>> hotspots;   // centre, rayon du bouton
+    juce::Colour metal { 0xff9a9a96 };                            // métal nu sous la peinture
+    float amount = 1.0f;
+    uint32_t seed = 1;
+};
+void drawWear (juce::Graphics&, const WearSpec&);
+// Poussière seule (verre, faces de boutons).
+void drawDust (juce::Graphics&, juce::Rectangle<float>, int count, float amount, uint32_t seed);
 void drawBevelEdge (juce::Graphics&, juce::Rectangle<float>, float corner, float strength);
 
 // Graduations imprimées autour d'un bouton (repères + nombres).
@@ -50,6 +69,8 @@ struct ScaleSpec
     int minorPerMajor = 1;
     float fontSize = 11;
     juce::Colour ink;
+    juce::Colour panelTone { 0xff202022 };
+    uint32_t seed = 7;
 };
 void drawKnobScale (juce::Graphics&, const ScaleSpec&);
 

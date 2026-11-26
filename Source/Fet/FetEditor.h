@@ -18,9 +18,18 @@ private:
     using Knob = swell::analog::Knob;
     Knob input { Knob::Style::FetLarge }, output { Knob::Style::FetLarge };
     Knob attack { Knob::Style::FetSmall }, release { Knob::Style::FetSmall }, mix { Knob::Style::FetSmall };
-    std::array<swell::analog::PushKey, 4> ratioKeys, meterKeys;
+    std::array<swell::analog::PushKey, 4> ratioKeys;
+
+    // Choix de la mesure du vu-mètre : quatre mots sérigraphiés sous le cadran, l'actif est à pleine encre.
+    struct MeterModes : juce::Component
+    {
+        int active = 0;
+        std::function<void (int)> onPick;
+        void paint (juce::Graphics&) override;
+        void mouseUp (const juce::MouseEvent&) override;
+    } meterModes;
+    juce::TooltipWindow tooltips { this, 700 };
     swell::analog::BatToggle power;
-    swell::analog::PilotLamp lamp { juce::Colour (0xffe8321e) };
     swell::analog::VuMeter meter;
     std::unique_ptr<juce::ParameterAttachment> ratioAttach, meterAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> powerAttach;
