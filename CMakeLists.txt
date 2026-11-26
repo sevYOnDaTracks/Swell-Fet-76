@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SwellFET76 VERSION 0.1.0 LANGUAGES C CXX)
+project(SwellFET76 VERSION 0.2.0 LANGUAGES C CXX)
 
 # Swell FET 76 : compresseur analogique. Interface entièrement rendue par le code (textures procédurales,
 # ombres, verre, aiguille VU physique), aucune image bitmap ni SVG.
