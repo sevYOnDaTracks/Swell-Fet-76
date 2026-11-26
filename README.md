@@ -1,4 +1,4 @@
-# Swell FET 76 0.1.0
+# Swell FET 76 0.2.0
 
 Limiteur FET, façade noire en aluminium brossé. Commandes : Input, Output, Attack (1–7), Release (1–7), Ratio 4 / 8 / 12 / 20 / All (Maj + clic), Meter GR / +8 / +4 / Off, Mix, Power, suréchantillonnage Off / 2x / 4x.
 
